@@ -70,28 +70,54 @@ const Btn = ({ children, onClick, color, small, disabled, outline }) => (
 // ── Swipeable row ─────────────────────────────────────────────────────────────
 function SwipeRow({ children, onDelete }) {
   const [offset, setOffset] = useState(0);
+  const [confirm, setConfirm] = useState(false);
   const startX = useRef(null);
+  const startOffset = useRef(0);
   const THRESHOLD = 80;
 
-  const onTouchStart = (e) => { startX.current = e.touches[0].clientX; };
+  const onTouchStart = (e) => {
+    startX.current = e.touches[0].clientX;
+    startOffset.current = offset;
+  };
   const onTouchMove = (e) => {
     if (startX.current === null) return;
     const dx = e.touches[0].clientX - startX.current;
-    if (dx < 0) setOffset(Math.max(dx, -THRESHOLD));
+    const next = startOffset.current + dx;
+    setOffset(Math.min(0, Math.max(next, -THRESHOLD)));
   };
   const onTouchEnd = () => {
-    if (offset < -THRESHOLD * 0.6) setOffset(-THRESHOLD);
-    else setOffset(0);
+    const target = offset < -THRESHOLD * 0.5 ? -THRESHOLD : 0;
+    setOffset(target);
     startX.current = null;
+  };
+
+  const handleDelete = () => {
+    if (!confirm) { setConfirm(true); return; }
+    onDelete();
+  };
+
+  const handleCancel = (e) => {
+    e.stopPropagation();
+    setConfirm(false);
+    setOffset(0);
   };
 
   return (
     <div style={{ position: "relative", marginBottom: 10, borderRadius: 16, overflow: "hidden" }}>
-      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: THRESHOLD, background: PALETTE.coral, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "0 16px 16px 0" }}
-        onClick={onDelete}>
-        <Icon name="trash" size={20} color="#fff" />
+      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: confirm ? 180 : THRESHOLD, background: confirm ? "#C0392B" : PALETTE.coral, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: "0 16px 16px 0", transition: "width 0.2s, background 0.2s" }}>
+        {confirm ? (
+          <>
+            <button onClick={handleDelete} style={{ background: "#fff", color: "#C0392B", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Xóa</button>
+            <button onClick={handleCancel} style={{ background: "rgba(255,255,255,0.25)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Hủy</button>
+          </>
+        ) : (
+          <div onClick={handleDelete} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer" }}>
+            <Icon name="trash" size={20} color="#fff" />
+            <span style={{ fontSize: 10, color: "#fff", fontWeight: 600 }}>Xóa</span>
+          </div>
+        )}
       </div>
-      <div style={{ transform: `translateX(${offset}px)`, transition: offset === 0 ? "transform 0.2s" : "none", position: "relative", zIndex: 1 }}
+      <div style={{ transform: `translateX(${offset}px)`, transition: "transform 0.2s", position: "relative", zIndex: 1 }}
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         {children}
       </div>
