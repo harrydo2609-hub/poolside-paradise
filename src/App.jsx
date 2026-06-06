@@ -474,9 +474,11 @@ export default function App() {
   useEffect(() => { if (tab === "calendar" && icalEvents.length === 0 && !icalLoading) fetchIcal(); }, [tab]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [aiHistory]);
 
-  const filtered = (arr) => filterMode === "all" ? arr : arr.filter(x => {
-    const d = new Date(x.date); return d.getMonth() === filterMonth && d.getFullYear() === filterYear;
-  });
+  const filtered = (arr) => {
+    if (filterMode === "all") return arr;
+    if (filterMode === "year") return arr.filter(x => new Date(x.date).getFullYear() === filterYear);
+    return arr.filter(x => { const d = new Date(x.date); return d.getMonth() === filterMonth && d.getFullYear() === filterYear; });
+  };
 
   const fExp = filtered(expenses), fInc = filtered(income);
   const totalIncome = fInc.reduce((s, r) => s + r.amount, 0);
@@ -570,23 +572,62 @@ export default function App() {
   };
 
   // ── Month Bar ───────────────────────────────────────────────────────────────
-  const MonthBar = () => (
-    <div style={{ background: PALETTE.cardBg, borderRadius: 16, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 8, boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}>
-      <button onClick={() => { setFilterMode("month"); if (filterMonth === 0) { setFilterMonth(11); setFilterYear(y => y - 1); } else setFilterMonth(m => m - 1); }} style={{ background: "none", border: "none", cursor: "pointer", color: PALETTE.teal, padding: 4 }}>
-        <Icon name="chevronL" size={18} color={PALETTE.teal} />
-      </button>
-      <div style={{ flex: 1, textAlign: "center", fontWeight: 700, fontSize: 15, color: PALETTE.dark }}>{MONTH_NAMES[filterMonth]} {filterYear}</div>
-      <button onClick={() => { setFilterMode("month"); if (filterMonth === 11) { setFilterMonth(0); setFilterYear(y => y + 1); } else setFilterMonth(m => m + 1); }} style={{ background: "none", border: "none", cursor: "pointer", color: PALETTE.teal, padding: 4 }}>
-        <Icon name="chevronR" size={18} color={PALETTE.teal} />
-      </button>
-      <button onClick={() => setFilterMode(m => m === "all" ? "month" : "all")} style={{ background: filterMode === "all" ? PALETTE.teal : "#EEF4F4", color: filterMode === "all" ? "#fff" : PALETTE.muted, border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-        {filterMode === "all" ? "All ✓" : "All"}
-      </button>
-      <button onClick={() => generatePDF(filterMonth, filterYear, expenses, income)} style={{ background: PALETTE.coral, color: "#fff", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-        <Icon name="pdf" size={13} color="#fff" /> PDF
-      </button>
-    </div>
-  );
+  const MonthBar = () => {
+    const years = [...new Set([...expenses, ...income].map(x => new Date(x.date).getFullYear()))].sort((a,b) => b-a);
+    if (!years.includes(filterYear)) years.push(filterYear);
+
+    return (
+      <div style={{ marginBottom: 16 }}>
+        {/* Quick buttons */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 8, overflowX: "auto", paddingBottom: 2 }}>
+          <button onClick={() => { setFilterMode("month"); setFilterMonth(now.getMonth()); setFilterYear(now.getFullYear()); }}
+            style={{ background: filterMode==="month" && filterMonth===now.getMonth() && filterYear===now.getFullYear() ? PALETTE.teal : "#EEF4F4", color: filterMode==="month" && filterMonth===now.getMonth() && filterYear===now.getFullYear() ? "#fff" : PALETTE.muted, border:"none", borderRadius:8, padding:"6px 12px", fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
+            Tháng này
+          </button>
+          <button onClick={() => { const last = now.getMonth()===0?11:now.getMonth()-1; const y = now.getMonth()===0?now.getFullYear()-1:now.getFullYear(); setFilterMode("month"); setFilterMonth(last); setFilterYear(y); }}
+            style={{ background: PALETTE.muted==="month"?"#EEF4F4":"#EEF4F4", color: PALETTE.muted, border:"none", borderRadius:8, padding:"6px 12px", fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
+            Tháng trước
+          </button>
+          {years.map(y => (
+            <button key={y} onClick={() => { setFilterMode("year"); setFilterYear(y); }}
+              style={{ background: filterMode==="year" && filterYear===y ? PALETTE.tealDark : "#EEF4F4", color: filterMode==="year" && filterYear===y ? "#fff" : PALETTE.muted, border:"none", borderRadius:8, padding:"6px 12px", fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
+              {y}
+            </button>
+          ))}
+          <button onClick={() => setFilterMode("all")}
+            style={{ background: filterMode==="all" ? PALETTE.gold : "#EEF4F4", color: filterMode==="all" ? "#fff" : PALETTE.muted, border:"none", borderRadius:8, padding:"6px 12px", fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }}>
+            Tất cả
+          </button>
+        </div>
+
+        {/* Month navigator — only show in month mode */}
+        {filterMode === "month" && (
+          <div style={{ background: PALETTE.cardBg, borderRadius: 16, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}>
+            <button onClick={() => { if (filterMonth===0){setFilterMonth(11);setFilterYear(y=>y-1);}else setFilterMonth(m=>m-1); }} style={{ background:"none",border:"none",cursor:"pointer",padding:4 }}>
+              <Icon name="chevronL" size={18} color={PALETTE.teal} />
+            </button>
+            <div style={{ flex:1, textAlign:"center", fontWeight:700, fontSize:15, color:PALETTE.dark }}>{MONTH_NAMES[filterMonth]} {filterYear}</div>
+            <button onClick={() => { if (filterMonth===11){setFilterMonth(0);setFilterYear(y=>y+1);}else setFilterMonth(m=>m+1); }} style={{ background:"none",border:"none",cursor:"pointer",padding:4 }}>
+              <Icon name="chevronR" size={18} color={PALETTE.teal} />
+            </button>
+            <button onClick={() => generatePDF(filterMonth, filterYear, expenses, income)} style={{ background:PALETTE.coral,color:"#fff",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4 }}>
+              <Icon name="pdf" size={13} color="#fff"/> PDF
+            </button>
+          </div>
+        )}
+
+        {/* Year mode label */}
+        {filterMode === "year" && (
+          <div style={{ background: PALETTE.cardBg, borderRadius: 16, padding: "10px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}>
+            <div style={{ fontWeight:700, fontSize:15, color:PALETTE.dark }}>Năm {filterYear}</div>
+            <button onClick={() => generatePDF(filterMonth, filterYear, expenses, income)} style={{ background:PALETTE.coral,color:"#fff",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4 }}>
+              <Icon name="pdf" size={13} color="#fff"/> PDF
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // ── Calendar ────────────────────────────────────────────────────────────────
   const renderCalendar = () => {
