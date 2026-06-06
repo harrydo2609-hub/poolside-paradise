@@ -622,6 +622,8 @@ export default function App() {
 
             {/* Month Picker Popup */}
             {showMonthPicker && (
+              <>
+              <div onClick={() => setShowMonthPicker(false)} style={{ position:"fixed", inset:0, zIndex:199 }} />
               <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:200, background:"#fff", borderRadius:16, padding:16, boxShadow:"0 8px 30px rgba(0,0,0,0.15)", marginTop:6 }}>
                 {/* Year selector */}
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
@@ -638,8 +640,8 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <button onClick={() => setShowMonthPicker(false)} style={{ width:"100%", marginTop:10, background:"#F5F5F5", border:"none", borderRadius:10, padding:"8px", fontSize:13, color:PALETTE.muted, cursor:"pointer" }}>Đóng</button>
               </div>
+              </>
             )}
           </div>
         )}
