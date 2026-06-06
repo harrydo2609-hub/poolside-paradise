@@ -195,19 +195,24 @@ function BillScanner({ onParsed, onCancel }) {
     done: "✅ Xong!",
   };
 
+  // Auto-open file picker on mount
+  useEffect(() => {
+    if (fileRef.current) fileRef.current.click();
+  }, []);
+
   return (
     <div style={{ background: "#F0F9F9", borderRadius: 16, padding: 20, marginBottom: 14, textAlign: "center", border: `2px dashed ${PALETTE.teal}` }}>
-      <div style={{ fontSize: 36, marginBottom: 8 }}>📸</div>
-      <div style={{ fontSize: 14, color: PALETTE.muted, marginBottom: 14 }}>Chụp hoặc chọn ảnh từ thư viện</div>
+      {status === "idle" && !preview && (
+        <>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>📸</div>
+          <div style={{ fontSize: 14, color: PALETTE.muted, marginBottom: 14 }}>Chụp hoặc chọn ảnh từ thư viện</div>
+          <Btn onClick={onCancel} color={PALETTE.muted} outline small>Hủy</Btn>
+        </>
+      )}
       {preview && <img src={preview} style={{ width: "100%", borderRadius: 12, marginBottom: 14, maxHeight: 180, objectFit: "cover" }} />}
       {driveUrl && <div style={{ fontSize: 11, color: PALETTE.teal, marginBottom: 10 }}>✅ Đã lưu Google Drive</div>}
-      {status !== "idle" ? (
+      {status !== "idle" && (
         <div style={{ color: PALETTE.teal, fontWeight: 600, fontSize: 14 }}>{statusText[status]}</div>
-      ) : (
-        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-          <Btn onClick={() => fileRef.current.click()}>📷 Chọn ảnh</Btn>
-          <Btn onClick={onCancel} color={PALETTE.muted} outline small>Hủy</Btn>
-        </div>
       )}
       <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
     </div>
