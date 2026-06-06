@@ -372,6 +372,68 @@ ${fE.map(e => `<tr><td>${e.date}</td><td>${e.category}</td><td>${e.note || "—"
   a.click();
 }
 
+
+// ── CSV Importer ──────────────────────────────────────────────────────────────
+function ImportCSV({ onImported, onCancel }) {
+  const [status, setStatus] = useState("idle"); // idle | importing | done | error
+  const [result, setResult] = useState(null);
+  const fileRef = useRef();
+
+  const handleFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setStatus("importing");
+    const text = await file.text();
+    try {
+      const r = await fetch("/api/import-csv", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csvText: text }),
+      });
+      const data = await r.json();
+      if (data.error) throw new Error(data.error);
+      setResult(data);
+      setStatus("done");
+      if (data.records?.length > 0) onImported(data.records);
+    } catch (e) {
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div style={{ background: "#F0F9F9", borderRadius: 16, padding: 20, marginBottom: 14, border: `2px dashed ${PALETTE.teal}` }}>
+      <div style={{ fontSize: 32, textAlign: "center", marginBottom: 8 }}>📊</div>
+      <div style={{ fontWeight: 700, textAlign: "center", marginBottom: 4 }}>Import từ Airbnb CSV</div>
+      <div style={{ fontSize: 12, color: PALETTE.muted, textAlign: "center", marginBottom: 16 }}>Download file CSV từ Airbnb → Upload vào đây</div>
+
+      {status === "idle" && (
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          <Btn onClick={() => fileRef.current.click()}>📂 Chọn file CSV</Btn>
+          <Btn onClick={onCancel} color={PALETTE.muted} outline small>Hủy</Btn>
+        </div>
+      )}
+      {status === "importing" && <div style={{ textAlign: "center", color: PALETTE.teal, fontWeight: 600 }}>⏳ Đang import...</div>}
+      {status === "done" && (
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+          <div style={{ fontWeight: 700, color: PALETTE.teal }}>Import thành công!</div>
+          <div style={{ fontSize: 13, color: PALETTE.muted, margin: "6px 0 14px" }}>
+            ✅ Đã thêm: <b style={{color: PALETTE.teal}}>{result?.imported}</b> bookings
+            {result?.skipped > 0 && <span> · ⏭️ Bỏ qua: <b style={{color: PALETTE.gold}}>{result?.skipped}</b> trùng lặp</span>}
+          </div>
+          <Btn onClick={onCancel} small>Đóng</Btn>
+        </div>
+      )}
+      {status === "error" && (
+        <div style={{ textAlign: "center" }}>
+          <div style={{ color: PALETTE.coral, marginBottom: 10 }}>❌ Lỗi import. Thử lại!</div>
+          <Btn onClick={() => setStatus("idle")} small>Thử lại</Btn>
+        </div>
+      )}
+      <input ref={fileRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleFile} />
+    </div>
+  );
+}
+
 // ── API ───────────────────────────────────────────────────────────────────────
 const api = async (action, body) => {
   const r = await fetch(`/api/baserow?action=${action}`, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { method: "GET" });
@@ -387,6 +449,7 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [showExpForm, setShowExpForm] = useState(false);
   const [showIncForm, setShowIncForm] = useState(false);
+  const [showImportCSV, setShowImportCSV] = useState(false);
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState(now.getMonth());
   const [filterYear, setFilterYear] = useState(now.getFullYear());
@@ -696,10 +759,12 @@ export default function App() {
             <MonthBar />
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <div style={{ fontWeight: 700, fontSize: 20 }}>Income <span style={{ fontSize: 14, color: PALETTE.muted, fontWeight: 400 }}>{fmt(totalIncome)}</span></div>
-              <button onClick={() => setShowIncForm(v => !v)} style={{ background: PALETTE.teal, color: "#fff", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, boxShadow: `0 4px 12px ${PALETTE.teal}44` }}>
-                + Add
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setShowImportCSV(v => !v)} style={{ background: "#E8F5F5", color: PALETTE.teal, border: "none", borderRadius: 12, padding: "10px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>📊 CSV</button>
+                <button onClick={() => setShowIncForm(v => !v)} style={{ background: PALETTE.teal, color: "#fff", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: `0 4px 12px ${PALETTE.teal}44` }}>+ Add</button>
+              </div>
             </div>
+            {showImportCSV && <ImportCSV onImported={(records) => { setIncome(prev => [...prev, ...records]); setShowImportCSV(false); }} onCancel={() => setShowImportCSV(false)} />}
             {showIncForm && <IncomeForm onSave={handleAddIncome} onCancel={cancelInc} saving={saving} />}
             {[...fInc].sort((a,b) => b.date.localeCompare(a.date)).map(r => (
               <SwipeRow key={r.id} onDelete={() => handleDelIncome(r.id)}>
