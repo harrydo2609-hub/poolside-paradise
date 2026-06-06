@@ -142,8 +142,9 @@ function SwipeRow({ children, onDelete }) {
 
 // ── Bill Scanner ──────────────────────────────────────────────────────────────
 function BillScanner({ onParsed, onCancel }) {
-  const [scanning, setScanning] = useState(false);
+  const [status, setStatus] = useState("idle"); // idle | uploading | parsing | done
   const [preview, setPreview] = useState(null);
+  const [driveUrl, setDriveUrl] = useState(null);
   const fileRef = useRef();
 
   const handleFile = async (e) => {
@@ -152,27 +153,60 @@ function BillScanner({ onParsed, onCancel }) {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const base64 = ev.target.result.split(",")[1];
+      const mediaType = file.type || "image/jpeg";
+      const filename = `bill-${new Date().toISOString().slice(0,10)}-${Date.now()}.jpg`;
       setPreview(ev.target.result);
-      setScanning(true);
+
+      // Step 1: Upload to Google Drive
+      setStatus("uploading");
+      let url = null;
       try {
-        const r = await fetch("/api/parse-bill", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image: base64, mediaType: file.type || "image/jpeg" }) });
-        onParsed(await r.json());
-      } catch { alert("Không đọc được bill. Thử lại!"); }
-      setScanning(false);
+        const uploadRes = await fetch("/api/upload-bill", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64, mediaType, filename }),
+        });
+        const uploadData = await uploadRes.json();
+        url = uploadData.url;
+        setDriveUrl(url);
+      } catch { }
+
+      // Step 2: Parse with AI
+      setStatus("parsing");
+      try {
+        const parseRes = await fetch("/api/parse-bill", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64, mediaType }),
+        });
+        const parsed = await parseRes.json();
+        setStatus("done");
+        onParsed({ ...parsed, driveUrl: url });
+      } catch {
+        alert("Không đọc được bill. Thử lại!");
+        setStatus("idle");
+      }
     };
     reader.readAsDataURL(file);
+  };
+
+  const statusText = {
+    idle: null,
+    uploading: "☁️ Đang lưu lên Google Drive...",
+    parsing: "🤖 AI đang đọc bill...",
+    done: "✅ Xong!",
   };
 
   return (
     <div style={{ background: "#F0F9F9", borderRadius: 16, padding: 20, marginBottom: 14, textAlign: "center", border: `2px dashed ${PALETTE.teal}` }}>
       <div style={{ fontSize: 36, marginBottom: 8 }}>📸</div>
-      <div style={{ fontSize: 14, color: PALETTE.muted, marginBottom: 14 }}>Chụp hoặc chọn ảnh hóa đơn</div>
+      <div style={{ fontSize: 14, color: PALETTE.muted, marginBottom: 14 }}>Chụp hoặc chọn ảnh từ thư viện</div>
       {preview && <img src={preview} style={{ width: "100%", borderRadius: 12, marginBottom: 14, maxHeight: 180, objectFit: "cover" }} />}
-      {scanning ? (
-        <div style={{ color: PALETTE.teal, fontWeight: 600, fontSize: 14 }}>🤖 AI đang đọc bill...</div>
+      {driveUrl && <div style={{ fontSize: 11, color: PALETTE.teal, marginBottom: 10 }}>✅ Đã lưu Google Drive</div>}
+      {status !== "idle" ? (
+        <div style={{ color: PALETTE.teal, fontWeight: 600, fontSize: 14 }}>{statusText[status]}</div>
       ) : (
-        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-          <Btn onClick={() => fileRef.current.click()}>📷 Chọn ảnh</Btn>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+          <Btn onClick={() => { fileRef.current.click(); }}>📷 Camera</Btn>
+          <Btn onClick={() => { fileRef.current.removeAttribute("capture"); fileRef.current.click(); }} color={PALETTE.tealDark}>🖼️ Thư viện</Btn>
           <Btn onClick={onCancel} color={PALETTE.muted} outline small>Hủy</Btn>
         </div>
       )}
