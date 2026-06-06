@@ -204,13 +204,12 @@ function BillScanner({ onParsed, onCancel }) {
       {status !== "idle" ? (
         <div style={{ color: PALETTE.teal, fontWeight: 600, fontSize: 14 }}>{statusText[status]}</div>
       ) : (
-        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-          <Btn onClick={() => { fileRef.current.click(); }}>📷 Camera</Btn>
-          <Btn onClick={() => { fileRef.current.removeAttribute("capture"); fileRef.current.click(); }} color={PALETTE.tealDark}>🖼️ Thư viện</Btn>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          <Btn onClick={() => fileRef.current.click()}>📷 Chọn ảnh</Btn>
           <Btn onClick={onCancel} color={PALETTE.muted} outline small>Hủy</Btn>
         </div>
       )}
-      <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFile} />
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
     </div>
   );
 }
