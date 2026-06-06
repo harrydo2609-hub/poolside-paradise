@@ -10,7 +10,7 @@ const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency:
 const today = () => new Date().toISOString().split("T")[0];
 
 const ICAL_URL = "https://www.airbnb.com/calendar/ical/903771582100260470.ics?t=5c6e23eb6a3447e78667ed85879cda9a";
-const PROXY = `https://api.allorigins.win/get?url=${encodeURIComponent(ICAL_URL)}`;
+const PROXY = '/api/ical';
 
 const INIT_EXPENSES = [
   { id: 1, date: "2025-06-01", category: "Cleaning", amount: 120, note: "Post-checkout deep clean", by: "Harry" },
@@ -123,8 +123,8 @@ export default function App() {
     setIcalError("");
     try {
       const res = await fetch(PROXY);
-      const json = await res.json();
-      const events = parseIcal(json.contents);
+      const text = await res.text();
+      const events = parseIcal(text);
       setIcalEvents(events);
     } catch (e) {
       setIcalError("Không thể tải lịch. Kiểm tra kết nối mạng.");
