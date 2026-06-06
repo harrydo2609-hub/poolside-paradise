@@ -88,22 +88,25 @@ function ExpenseForm({ onSave, onCancel, saving, prefill }) {
     setShowScanner(false);
   };
 
-  if (showScanner) return <BillScanner onParsed={handleParsed} onCancel={() => setShowScanner(false)} />;
-
   return (
     <div style={{ background:"#fff", borderRadius:16, padding:16, marginBottom:14 }}>
+      {showScanner && <BillScanner onParsed={handleParsed} onCancel={() => setShowScanner(false)} />}
+      {!showScanner && (
       <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:8 }}>
         <button onClick={() => setShowScanner(true)} style={{ background:PALETTE.tealLight, color:"#fff", border:"none", borderRadius:8, padding:"6px 12px", fontSize:12, fontWeight:600, cursor:"pointer" }}>📸 Scan Bill</button>
       </div>
+      )}
       <LabelRow label="Date"><input type="date" style={inputStyle} value={date} onChange={e => setDate(e.target.value)} /></LabelRow>
       <LabelRow label="Category"><select style={inputStyle} value={category} onChange={e => setCategory(e.target.value)}>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></LabelRow>
       <LabelRow label="Amount ($)"><input type="number" style={inputStyle} placeholder="0" value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal"/></LabelRow>
       <LabelRow label="Note"><input type="text" style={inputStyle} placeholder="Description..." value={note} onChange={e=>setNote(e.target.value)}/></LabelRow>
       <LabelRow label="By"><select style={inputStyle} value={by} onChange={e=>setBy(e.target.value)}>{["Harry","Lily","Cindy"].map(n=><option key={n}>{n}</option>)}</select></LabelRow>
+      {!showScanner && (
       <div style={{ display:"flex", gap:8 }}>
         <Btn onClick={()=>{ if(!amount||isNaN(amount))return; onSave({date,category,amount:parseFloat(amount),note,by}); }} disabled={saving}>{saving?"Saving...":"Save"}</Btn>
         <Btn onClick={onCancel} color={PALETTE.muted} small>Cancel</Btn>
       </div>
+      )}
     </div>
   );
 }
