@@ -177,10 +177,10 @@ Answer in the same language as the user (English or Vietnamese). Be concise.`;
         }),
       });
       const data = await res.json();
-      const reply = data.content?.[0]?.text || "No response.";
+      const reply = data.content?.[0]?.text || "DEBUG: " + JSON.stringify(data).slice(0,300);
       setAiHistory([...newHistory, { role: "assistant", content: reply }]);
     } catch (e) {
-      setAiHistory([...newHistory, { role: "assistant", content: "Lỗi kết nối. Thử lại sau." }]);
+      setAiHistory([...newHistory, { role: "assistant", content: "Lỗi: " + e.message }]);
     }
     setAiLoading(false);
   };
