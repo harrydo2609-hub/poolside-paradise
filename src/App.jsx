@@ -74,6 +74,68 @@ function getEventForDate(dateStr, events) {
   return events.find(e => e.dtstart <= dateStr && (e.dtend ? dateStr < e.dtend : false));
 }
 
+
+// ── Stable sub-forms (prevent keyboard dismiss on re-render) ─────────────────
+const ExpenseForm = ({ onSave, onCancel }) => {
+  const [form, setForm] = React.useState({ date: new Date().toISOString().split("T")[0], category: "Cleaning", amount: "", note: "", by: "Harry" });
+  const inputStyle = { width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 10, border: "1.5px solid #dde8e8", fontSize: 14, fontFamily: "inherit", background: "#FDFAF4", color: "#1A2B2C", outline: "none" };
+  const LabelRow = ({ label, children }) => (
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: "block", fontSize: 11, color: "#6B8C8E", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.8 }}>{label}</label>
+      {children}
+    </div>
+  );
+  return (
+    <div style={{ background: "#fff", borderRadius: 16, padding: 16, marginBottom: 14 }}>
+      <LabelRow label="Date"><input type="date" style={inputStyle} value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></LabelRow>
+      <LabelRow label="Category">
+        <select style={{ ...inputStyle, appearance: "none" }} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+          {["Cleaning","Maintenance","Supplies","Utilities","Mortgage","Insurance","Marketing","Other"].map(c => <option key={c}>{c}</option>)}
+        </select>
+      </LabelRow>
+      <LabelRow label="Amount ($)"><input type="number" style={inputStyle} placeholder="0" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></LabelRow>
+      <LabelRow label="Note"><input type="text" style={inputStyle} placeholder="Description..." value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></LabelRow>
+      <LabelRow label="By">
+        <select style={{ ...inputStyle, appearance: "none" }} value={form.by} onChange={e => setForm(f => ({ ...f, by: e.target.value }))}>
+          {["Harry","Lily","Cindy"].map(n => <option key={n}>{n}</option>)}
+        </select>
+      </LabelRow>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={() => { if (!form.amount || isNaN(form.amount)) return; onSave({ ...form, amount: parseFloat(form.amount) }); }} style={{ background: "#0D7377", color: "#fff", border: "none", borderRadius: 10, padding: "11px 20px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Save</button>
+        <button onClick={onCancel} style={{ background: "#6B8C8E", color: "#fff", border: "none", borderRadius: 10, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+      </div>
+    </div>
+  );
+};
+
+const IncomeForm = ({ onSave, onCancel }) => {
+  const [form, setForm] = React.useState({ date: new Date().toISOString().split("T")[0], amount: "", nights: "", guest: "", platform: "Airbnb" });
+  const inputStyle = { width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 10, border: "1.5px solid #dde8e8", fontSize: 14, fontFamily: "inherit", background: "#FDFAF4", color: "#1A2B2C", outline: "none" };
+  const LabelRow = ({ label, children }) => (
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: "block", fontSize: 11, color: "#6B8C8E", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.8 }}>{label}</label>
+      {children}
+    </div>
+  );
+  return (
+    <div style={{ background: "#fff", borderRadius: 16, padding: 16, marginBottom: 14 }}>
+      <LabelRow label="Date"><input type="date" style={inputStyle} value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} /></LabelRow>
+      <LabelRow label="Amount ($)"><input type="number" style={inputStyle} placeholder="0" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></LabelRow>
+      <LabelRow label="Nights"><input type="number" style={inputStyle} placeholder="1" value={form.nights} onChange={e => setForm(f => ({ ...f, nights: e.target.value }))} /></LabelRow>
+      <LabelRow label="Guest"><input type="text" style={inputStyle} placeholder="Guest name" value={form.guest} onChange={e => setForm(f => ({ ...f, guest: e.target.value }))} /></LabelRow>
+      <LabelRow label="Platform">
+        <select style={{ ...inputStyle, appearance: "none" }} value={form.platform} onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}>
+          {["Airbnb","VRBO","Direct","Other"].map(p => <option key={p}>{p}</option>)}
+        </select>
+      </LabelRow>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={() => { if (!form.amount || isNaN(form.amount)) return; onSave({ ...form, amount: parseFloat(form.amount), nights: parseInt(form.nights) || 1 }); }} style={{ background: "#0D7377", color: "#fff", border: "none", borderRadius: 10, padding: "11px 20px", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Save</button>
+        <button onClick={onCancel} style={{ background: "#6B8C8E", color: "#fff", border: "none", borderRadius: 10, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
   const [tab, setTab] = useState("dashboard");
   const [expenses, setExpenses] = useState(INIT_EXPENSES);
@@ -408,21 +470,10 @@ Answer in the same language as the user (English or Vietnamese). Be concise.`;
               <Btn onClick={() => setShowIncForm(!showIncForm)} small>+ Add</Btn>
             </div>
             {showIncForm && (
-              <div style={{ background: "#fff", borderRadius: 16, padding: 16, marginBottom: 14 }}>
-                <InputRow label="Date"><input type="date" style={inputStyle} value={incForm.date} onChange={e => setIncForm({ ...incForm, date: e.target.value })} /></InputRow>
-                <InputRow label="Amount ($)"><input type="number" style={inputStyle} placeholder="0" value={incForm.amount} onChange={e => setIncForm({ ...incForm, amount: e.target.value })} /></InputRow>
-                <InputRow label="Nights"><input type="number" style={inputStyle} placeholder="1" value={incForm.nights} onChange={e => setIncForm({ ...incForm, nights: e.target.value })} /></InputRow>
-                <InputRow label="Guest"><input type="text" style={inputStyle} placeholder="Guest name" value={incForm.guest} onChange={e => setIncForm({ ...incForm, guest: e.target.value })} /></InputRow>
-                <InputRow label="Platform">
-                  <select style={{ ...inputStyle, appearance: "none" }} value={incForm.platform} onChange={e => setIncForm({ ...incForm, platform: e.target.value })}>
-                    {PLATFORMS.map(p => <option key={p}>{p}</option>)}
-                  </select>
-                </InputRow>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Btn onClick={addIncome}>Save</Btn>
-                  <Btn onClick={() => setShowIncForm(false)} color={PALETTE.muted} small>Cancel</Btn>
-                </div>
-              </div>
+              <IncomeForm
+                onSave={(data) => { setIncome(prev => [...prev, { ...data, id: Date.now() }]); setShowIncForm(false); }}
+                onCancel={() => setShowIncForm(false)}
+              />
             )}
             {income.map(r => (
               <div key={r.id} style={{ background: "#fff", borderRadius: 14, padding: "12px 14px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -447,25 +498,10 @@ Answer in the same language as the user (English or Vietnamese). Be concise.`;
               <Btn onClick={() => setShowExpForm(!showExpForm)} small>+ Add</Btn>
             </div>
             {showExpForm && (
-              <div style={{ background: "#fff", borderRadius: 16, padding: 16, marginBottom: 14 }}>
-                <InputRow label="Date"><input type="date" style={inputStyle} value={expForm.date} onChange={e => setExpForm({ ...expForm, date: e.target.value })} /></InputRow>
-                <InputRow label="Category">
-                  <select style={{ ...inputStyle, appearance: "none" }} value={expForm.category} onChange={e => setExpForm({ ...expForm, category: e.target.value })}>
-                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </InputRow>
-                <InputRow label="Amount ($)"><input type="number" style={inputStyle} placeholder="0" value={expForm.amount} onChange={e => setExpForm({ ...expForm, amount: e.target.value })} /></InputRow>
-                <InputRow label="Note"><input type="text" style={inputStyle} placeholder="Description..." value={expForm.note} onChange={e => setExpForm({ ...expForm, note: e.target.value })} /></InputRow>
-                <InputRow label="By">
-                  <select style={{ ...inputStyle, appearance: "none" }} value={expForm.by} onChange={e => setExpForm({ ...expForm, by: e.target.value })}>
-                    {["Harry","Lily","Cindy"].map(n => <option key={n}>{n}</option>)}
-                  </select>
-                </InputRow>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Btn onClick={addExpense}>Save</Btn>
-                  <Btn onClick={() => setShowExpForm(false)} color={PALETTE.muted} small>Cancel</Btn>
-                </div>
-              </div>
+              <ExpenseForm
+                onSave={(data) => { setExpenses(prev => [...prev, { ...data, id: Date.now() }]); setShowExpForm(false); }}
+                onCancel={() => setShowExpForm(false)}
+              />
             )}
             {expenses.map(e => (
               <div key={e.id} style={{ background: "#fff", borderRadius: 14, padding: "12px 14px", marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
