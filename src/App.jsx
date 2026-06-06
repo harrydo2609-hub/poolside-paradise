@@ -450,6 +450,7 @@ export default function App() {
   const [showExpForm, setShowExpForm] = useState(false);
   const [showIncForm, setShowIncForm] = useState(false);
   const [showImportCSV, setShowImportCSV] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
   const now = new Date();
   const [filterMonth, setFilterMonth] = useState(now.getMonth());
   const [filterYear, setFilterYear] = useState(now.getFullYear());
@@ -602,17 +603,44 @@ export default function App() {
 
         {/* Month navigator — only show in month mode */}
         {filterMode === "month" && (
-          <div style={{ background: PALETTE.cardBg, borderRadius: 16, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}>
-            <button onClick={() => { if (filterMonth===0){setFilterMonth(11);setFilterYear(y=>y-1);}else setFilterMonth(m=>m-1); }} style={{ background:"none",border:"none",cursor:"pointer",padding:4 }}>
-              <Icon name="chevronL" size={18} color={PALETTE.teal} />
-            </button>
-            <div style={{ flex:1, textAlign:"center", fontWeight:700, fontSize:15, color:PALETTE.dark }}>{MONTH_NAMES[filterMonth]} {filterYear}</div>
-            <button onClick={() => { if (filterMonth===11){setFilterMonth(0);setFilterYear(y=>y+1);}else setFilterMonth(m=>m+1); }} style={{ background:"none",border:"none",cursor:"pointer",padding:4 }}>
-              <Icon name="chevronR" size={18} color={PALETTE.teal} />
-            </button>
-            <button onClick={() => generatePDF(filterMonth, filterYear, expenses, income)} style={{ background:PALETTE.coral,color:"#fff",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4 }}>
-              <Icon name="pdf" size={13} color="#fff"/> PDF
-            </button>
+          <div style={{ position:"relative" }}>
+            <div style={{ background: PALETTE.cardBg, borderRadius: 16, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}>
+              <button onClick={() => { if (filterMonth===0){setFilterMonth(11);setFilterYear(y=>y-1);}else setFilterMonth(m=>m-1); }} style={{ background:"none",border:"none",cursor:"pointer",padding:4 }}>
+                <Icon name="chevronL" size={18} color={PALETTE.teal} />
+              </button>
+              <div onClick={() => setShowMonthPicker(v=>!v)} style={{ flex:1, textAlign:"center", fontWeight:700, fontSize:15, color:PALETTE.teal, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                {MONTH_NAMES[filterMonth]} {filterYear}
+                <span style={{ fontSize:10, opacity:0.7 }}>▼</span>
+              </div>
+              <button onClick={() => { if (filterMonth===11){setFilterMonth(0);setFilterYear(y=>y+1);}else setFilterMonth(m=>m+1); }} style={{ background:"none",border:"none",cursor:"pointer",padding:4 }}>
+                <Icon name="chevronR" size={18} color={PALETTE.teal} />
+              </button>
+              <button onClick={() => generatePDF(filterMonth, filterYear, expenses, income)} style={{ background:PALETTE.coral,color:"#fff",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4 }}>
+                <Icon name="pdf" size={13} color="#fff"/> PDF
+              </button>
+            </div>
+
+            {/* Month Picker Popup */}
+            {showMonthPicker && (
+              <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:200, background:"#fff", borderRadius:16, padding:16, boxShadow:"0 8px 30px rgba(0,0,0,0.15)", marginTop:6 }}>
+                {/* Year selector */}
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                  <button onClick={() => setFilterYear(y=>y-1)} style={{ background:"#EEF4F4",border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontWeight:700,color:PALETTE.teal }}>‹</button>
+                  <div style={{ fontWeight:700, fontSize:16, color:PALETTE.dark }}>{filterYear}</div>
+                  <button onClick={() => setFilterYear(y=>y+1)} style={{ background:"#EEF4F4",border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontWeight:700,color:PALETTE.teal }}>›</button>
+                </div>
+                {/* Month grid */}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6 }}>
+                  {MONTH_NAMES.map((m,i) => (
+                    <button key={m} onClick={() => { setFilterMonth(i); setFilterMode("month"); setShowMonthPicker(false); }}
+                      style={{ background: filterMonth===i && filterYear===filterYear ? PALETTE.teal : "#F5F5F5", color: filterMonth===i ? "#fff" : PALETTE.dark, border:"none", borderRadius:10, padding:"8px 4px", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                      {m.slice(0,3)}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setShowMonthPicker(false)} style={{ width:"100%", marginTop:10, background:"#F5F5F5", border:"none", borderRadius:10, padding:"8px", fontSize:13, color:PALETTE.muted, cursor:"pointer" }}>Đóng</button>
+              </div>
+            )}
           </div>
         )}
 
