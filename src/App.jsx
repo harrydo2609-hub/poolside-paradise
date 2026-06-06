@@ -73,7 +73,8 @@ function SwipeRow({ children, onDelete }) {
   const [confirm, setConfirm] = useState(false);
   const startX = useRef(null);
   const startOffset = useRef(0);
-  const THRESHOLD = 80;
+  const SWIPE = 80;
+  const CONFIRM_W = 160;
 
   const onTouchStart = (e) => {
     startX.current = e.touches[0].clientX;
@@ -83,16 +84,26 @@ function SwipeRow({ children, onDelete }) {
     if (startX.current === null) return;
     const dx = e.touches[0].clientX - startX.current;
     const next = startOffset.current + dx;
-    setOffset(Math.min(0, Math.max(next, -THRESHOLD)));
+    const max = confirm ? -CONFIRM_W : -SWIPE;
+    setOffset(Math.min(0, Math.max(next, max)));
   };
   const onTouchEnd = () => {
-    const target = offset < -THRESHOLD * 0.5 ? -THRESHOLD : 0;
-    setOffset(target);
+    if (confirm) {
+      setOffset(offset < -CONFIRM_W * 0.3 ? -CONFIRM_W : 0);
+      if (offset >= -CONFIRM_W * 0.3) setConfirm(false);
+    } else {
+      setOffset(offset < -SWIPE * 0.5 ? -SWIPE : 0);
+    }
     startX.current = null;
   };
 
-  const handleDelete = () => {
-    if (!confirm) { setConfirm(true); return; }
+  const handleTrashClick = () => {
+    setConfirm(true);
+    setOffset(-CONFIRM_W);
+  };
+
+  const handleConfirmDelete = (e) => {
+    e.stopPropagation();
     onDelete();
   };
 
@@ -104,21 +115,25 @@ function SwipeRow({ children, onDelete }) {
 
   return (
     <div style={{ position: "relative", marginBottom: 10, borderRadius: 16, overflow: "hidden" }}>
-      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: confirm ? 180 : THRESHOLD, background: confirm ? "#C0392B" : PALETTE.coral, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: "0 16px 16px 0", transition: "width 0.2s, background 0.2s" }}>
+      {/* Delete background */}
+      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: confirm ? CONFIRM_W : SWIPE, background: confirm ? "#C0392B" : PALETTE.coral, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: "0 16px 16px 0", transition: "width 0.2s, background 0.2s", padding: "0 8px" }}>
         {confirm ? (
           <>
-            <button onClick={handleDelete} style={{ background: "#fff", color: "#C0392B", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Xóa</button>
-            <button onClick={handleCancel} style={{ background: "rgba(255,255,255,0.25)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Hủy</button>
+            <button onClick={handleConfirmDelete} style={{ background: "#fff", color: "#C0392B", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Xóa</button>
+            <button onClick={handleCancel} style={{ background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Hủy</button>
           </>
         ) : (
-          <div onClick={handleDelete} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer" }}>
+          <div onClick={handleTrashClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer" }}>
             <Icon name="trash" size={20} color="#fff" />
             <span style={{ fontSize: 10, color: "#fff", fontWeight: 600 }}>Xóa</span>
           </div>
         )}
       </div>
-      <div style={{ transform: `translateX(${offset}px)`, transition: "transform 0.2s", position: "relative", zIndex: 1 }}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+      {/* Swipeable card */}
+      <div
+        style={{ transform: `translateX(${offset}px)`, transition: startX.current ? "none" : "transform 0.25s ease", position: "relative", zIndex: 1 }}
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+      >
         {children}
       </div>
     </div>
