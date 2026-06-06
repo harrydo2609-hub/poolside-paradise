@@ -670,7 +670,7 @@ export default function App() {
               </button>
             </div>
             {showIncForm && <IncomeForm onSave={handleAddIncome} onCancel={cancelInc} saving={saving} />}
-            {fInc.map(r => (
+            {[...fInc].sort((a,b) => b.date.localeCompare(a.date)).map(r => (
               <SwipeRow key={r.id} onDelete={() => handleDelIncome(r.id)}>
                 <div style={{ background: PALETTE.cardBg, borderRadius: 16, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -699,7 +699,7 @@ export default function App() {
               </button>
             </div>
             {showExpForm && <ExpenseForm onSave={handleAddExpense} onCancel={cancelExp} saving={saving} />}
-            {fExp.map(e => (
+            {[...fExp].sort((a,b) => b.date.localeCompare(a.date)).map(e => (
               <SwipeRow key={e.id} onDelete={() => handleDelExpense(e.id)}>
                 <div style={{ background: PALETTE.cardBg, borderRadius: 16, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
