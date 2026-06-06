@@ -467,11 +467,42 @@ export default function App() {
     const newHistory = [...aiHistory, { role: "user", content: userMsg }];
     setAiHistory(newHistory);
     const context = `Financial assistant for "Poolside Paradise" Airbnb. Owners: Harry & Lily. Partner: Cindy (30%). Period: ${qMode === "all" ? "All time" : `${MONTH_NAMES[qMonth]} ${qYear}`}. Income: ${fmt(qTI)} | Expenses: ${fmt(qTE)} | Profit: ${fmt(qNet)} | Cindy: ${fmt(qCindy)} | Owners: ${fmt(qOwners)}. Bookings: ${JSON.stringify(qI)}. Expenses: ${JSON.stringify(qE)}. Reply in same language as user.`;
+    // Detect intent before calling AI for optimistic update
+    const isAddExpense = /thêm|add|thêm vào|chi phí|expense|cleaning|maintenance|supplies|utilities|mortgage|insurance|marketing/i.test(userMsg) && /\d+/.test(userMsg) && !/income|thu nhập|booking|khách|guest/i.test(userMsg);
+    const isAddIncome = /thêm|add|income|thu nhập|booking|khách|guest/i.test(userMsg) && /\d+/.test(userMsg);
+
+    // Optimistic temp ID
+    const tempId = `temp-${Date.now()}`;
+
     try {
       const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1000, system: context, messages: newHistory }) });
       const d = await r.json();
-      setAiHistory([...newHistory, { role: "assistant", content: d.content?.[0]?.text || "Lỗi" }]);
-    } catch (e) { setAiHistory([...newHistory, { role: "assistant", content: "Lỗi: " + e.message }]); }
+      const reply = d.content?.find(b => b.type === "text")?.text || "Lỗi";
+      setAiHistory([...newHistory, { role: "assistant", content: reply }]);
+
+      // If AI added data — replace temp with real ID
+      if (d.action?.result?.success) {
+        const { tool, result, input } = d.action;
+        if (tool === "add_expense") {
+          setExpenses(prev => {
+            const exists = prev.find(x => x.id === tempId);
+            if (exists) return prev.map(x => x.id === tempId ? { ...x, id: result.id } : x);
+            return [...prev, { ...input, id: result.id }];
+          });
+        } else if (tool === "add_income") {
+          setIncome(prev => {
+            const exists = prev.find(x => x.id === tempId);
+            if (exists) return prev.map(x => x.id === tempId ? { ...x, id: result.id } : x);
+            return [...prev, { ...input, id: result.id, nights: input.nights || 1, guest: input.guest || "", platform: input.platform || "Airbnb" }];
+          });
+        }
+      }
+    } catch (e) {
+      // Remove optimistic item on error
+      setExpenses(prev => prev.filter(x => x.id !== tempId));
+      setIncome(prev => prev.filter(x => x.id !== tempId));
+      setAiHistory([...newHistory, { role: "assistant", content: "Lỗi: " + e.message }]);
+    }
     setAiLoading(false);
   };
 
