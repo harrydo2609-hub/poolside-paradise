@@ -462,6 +462,8 @@ export default function App() {
   const [filterMode, setFilterMode] = useState("month");
   const [aiQuery, setAiQuery] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiAttachment, setAiAttachment] = useState(null); // {base64, mediaType, name, preview}
+  const aiFileRef = useRef();
   const [aiHistory, setAiHistory] = useState([]);
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calMonth, setCalMonth] = useState(now.getMonth());
@@ -545,27 +547,31 @@ export default function App() {
     // Optimistic temp ID
     const tempId = `temp-${Date.now()}`;
 
+    // Build message content with optional attachment
+    const userContent = aiAttachment
+      ? [
+          { type: "image", source: { type: "base64", media_type: aiAttachment.mediaType, data: aiAttachment.base64 } },
+          { type: "text", text: userMsg }
+        ]
+      : userMsg;
+    const newHistoryWithAttach = [...aiHistory, { role: "user", content: userContent }];
+    setAiAttachment(null);
+
     try {
-      const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1000, system: context, messages: newHistory }) });
+      const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1500, system: context, messages: newHistoryWithAttach }) });
       const d = await r.json();
       const reply = d.content?.find(b => b.type === "text")?.text || "Lỗi";
-      setAiHistory([...newHistory, { role: "assistant", content: reply }]);
+      setAiHistory([...newHistoryWithAttach, { role: "assistant", content: reply }]);
 
-      // If AI added data — replace temp with real ID
+      // If AI added data
       if (d.action?.result?.success) {
         const { tool, result, input } = d.action;
         if (tool === "add_expense") {
-          setExpenses(prev => {
-            const exists = prev.find(x => x.id === tempId);
-            if (exists) return prev.map(x => x.id === tempId ? { ...x, id: result.id } : x);
-            return [...prev, { ...input, id: result.id }];
-          });
+          setExpenses(prev => [...prev.filter(x => x.id !== tempId), { ...input, id: result.id }]);
+        } else if (tool === "add_multiple_expenses" && result.records) {
+          setExpenses(prev => [...prev, ...result.records]);
         } else if (tool === "add_income") {
-          setIncome(prev => {
-            const exists = prev.find(x => x.id === tempId);
-            if (exists) return prev.map(x => x.id === tempId ? { ...x, id: result.id } : x);
-            return [...prev, { ...input, id: result.id, nights: input.nights || 1, guest: input.guest || "", platform: input.platform || "Airbnb" }];
-          });
+          setIncome(prev => [...prev.filter(x => x.id !== tempId), { ...input, id: result.id, nights: input.nights || 1, guest: input.guest || "", platform: input.platform || "Airbnb" }]);
         }
       }
     } catch (e) {
@@ -910,10 +916,45 @@ export default function App() {
               {aiLoading && <div style={{ color: PALETTE.muted, fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}><span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</span> Đang trả lời...</div>}
               <div ref={chatEndRef} />
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
+            {/* Attachment preview */}
+            {aiAttachment && (
+              <div style={{ background: "#F0F9F9", borderRadius: 12, padding: "8px 12px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                {aiAttachment.preview
+                  ? <img src={aiAttachment.preview} style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover" }} />
+                  : <span style={{ fontSize: 24 }}>📄</span>
+                }
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: PALETTE.dark }}>{aiAttachment.name}</div>
+                  <div style={{ fontSize: 11, color: PALETTE.muted }}>Đính kèm vào tin nhắn tiếp theo</div>
+                </div>
+                <button onClick={() => setAiAttachment(null)} style={{ background: "none", border: "none", color: PALETTE.coral, cursor: "pointer", fontSize: 18 }}>✕</button>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button onClick={() => aiFileRef.current.click()} style={{ background: "#EEF4F4", border: "none", borderRadius: 12, padding: "12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 18 }}>📎</span>
+              </button>
               <input style={{ ...inputStyle, flex: 1, borderRadius: 14, background: PALETTE.cardBg, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }} placeholder="Hỏi gì đó..." value={aiQuery} onChange={e => setAiQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && askAI()} />
-              <button onClick={askAI} style={{ background: PALETTE.teal, color: "#fff", border: "none", borderRadius: 14, padding: "0 20px", fontSize: 15, fontWeight: 600, cursor: "pointer", boxShadow: `0 4px 12px ${PALETTE.teal}44` }}>Gửi</button>
+              <button onClick={askAI} style={{ background: PALETTE.teal, color: "#fff", border: "none", borderRadius: 14, padding: "0 18px", height: 48, fontSize: 15, fontWeight: 600, cursor: "pointer", boxShadow: `0 4px 12px ${PALETTE.teal}44`, flexShrink: 0 }}>Gửi</button>
             </div>
+            <input ref={aiFileRef} type="file" accept="image/*,.csv,.pdf" style={{ display: "none" }} onChange={async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                const base64 = ev.target.result.split(",")[1];
+                const isImage = file.type.startsWith("image/");
+                setAiAttachment({
+                  base64,
+                  mediaType: file.type || "image/jpeg",
+                  name: file.name,
+                  preview: isImage ? ev.target.result : null,
+                  isImage,
+                });
+              };
+              reader.readAsDataURL(file);
+              e.target.value = "";
+            }} />
           </div>
         )}
       </div>
