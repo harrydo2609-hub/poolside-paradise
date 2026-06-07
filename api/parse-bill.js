@@ -20,7 +20,7 @@ export default async function handler(req, res) {
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: image } },
-            { type: 'text', text: 'Extract bill info. Reply ONLY with JSON: {"amount": number, "date": "YYYY-MM-DD", "category": "Cleaning|Maintenance|Supplies|Utilities|Mortgage|Insurance|Marketing|Other", "note": "brief description"}. If date unclear use today. No markdown.' }
+            { type: 'text', text: `Extract bill info. Today is ${new Date().toISOString().split("T")[0]}. Reply ONLY with JSON: {"amount": number, "date": "YYYY-MM-DD", "category": "Cleaning|Maintenance|Supplies|Utilities|Mortgage|Insurance|Marketing|Other", "note": "brief description"}. IMPORTANT: If the bill does NOT clearly show a date, use today's date (${new Date().toISOString().split("T")[0]}). Never guess or invent a date. No markdown.` }
           ]
         }]
       })
