@@ -11,30 +11,55 @@ const baserowHeaders = {
 const tools = [
   {
     name: "add_expense",
-    description: "Add a new expense record. Use when user says they want to add/record an expense, cost, or payment.",
+    description: "Add a single expense record.",
     input_schema: {
       type: "object",
       properties: {
         date: { type: "string", description: "Date in YYYY-MM-DD format. Use today if not specified." },
-        category: { type: "string", enum: ["Cleaning","Maintenance","Supplies","Utilities","Mortgage","Insurance","Marketing","Other"], description: "Expense category" },
+        category: { type: "string", enum: ["Cleaning","Maintenance","Supplies","Utilities","Mortgage","Insurance","Marketing","Other"] },
         amount: { type: "number", description: "Amount in USD" },
-        note: { type: "string", description: "Brief description of the expense" },
+        note: { type: "string", description: "Brief description" },
         by: { type: "string", description: "Who paid. Default: Harry" },
       },
       required: ["date", "category", "amount"],
     },
   },
   {
+    name: "add_multiple_expenses",
+    description: "Add multiple expense records at once. Use when user mentions recurring expenses (weekly, every Thursday, every month), or wants to add expenses for multiple dates. ALWAYS use this instead of asking for clarification when user says 'every week', 'mỗi tuần', 'hàng tuần', 'mỗi tháng'. Calculate the dates yourself based on current date and context.",
+    input_schema: {
+      type: "object",
+      properties: {
+        expenses: {
+          type: "array",
+          description: "List of expenses to add",
+          items: {
+            type: "object",
+            properties: {
+              date: { type: "string", description: "Date in YYYY-MM-DD format" },
+              category: { type: "string", enum: ["Cleaning","Maintenance","Supplies","Utilities","Mortgage","Insurance","Marketing","Other"] },
+              amount: { type: "number" },
+              note: { type: "string" },
+              by: { type: "string" },
+            },
+            required: ["date", "category", "amount"],
+          },
+        },
+      },
+      required: ["expenses"],
+    },
+  },
+  {
     name: "add_income",
-    description: "Add a new income/booking record. Use when user says they want to add income, a booking, or revenue.",
+    description: "Add a new income/booking record.",
     input_schema: {
       type: "object",
       properties: {
         date: { type: "string", description: "Check-in date in YYYY-MM-DD format" },
-        amount: { type: "number", description: "Amount in USD" },
-        nights: { type: "number", description: "Number of nights" },
-        guest: { type: "string", description: "Guest name" },
-        platform: { type: "string", enum: ["Airbnb","VRBO","Direct","Other"], description: "Booking platform" },
+        amount: { type: "number" },
+        nights: { type: "number" },
+        guest: { type: "string" },
+        platform: { type: "string", enum: ["Airbnb","VRBO","Direct","Other"] },
       },
       required: ["date", "amount"],
     },
@@ -70,6 +95,21 @@ async function runTool(name, input) {
     return { success: true, id: data.id, date: normalDate, category, amount, note, by };
   }
 
+  if (name === "add_multiple_expenses") {
+    const { expenses } = input;
+    const results = [];
+    for (const exp of expenses) {
+      const nd = normalizeDate(exp.date);
+      const r = await fetch(`${BASE}/database/rows/table/${CHI_PHI_ID}/?user_field_names=true`, {
+        method: "POST", headers: baserowHeaders,
+        body: JSON.stringify({ Name: exp.by || "Harry", Date: nd, Category: exp.category || "Other", Amount: exp.amount, Notes: exp.note || "" }),
+      });
+      const d = await r.json();
+      results.push({ id: d.id, date: nd, category: exp.category, amount: exp.amount, note: exp.note || "", by: exp.by || "Harry" });
+    }
+    return { success: true, count: results.length, records: results };
+  }
+
   if (name === "add_income") {
     const { date, amount, nights = 1, guest = "", platform = "Airbnb" } = input;
     const normalDate2 = normalizeDate(date || today);
@@ -92,7 +132,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { model, max_tokens, system, messages } = req.body;
+    const { model, max_tokens, messages } = req.body;
+    let { system } = req.body;
+    // Inject today's date and day info so AI can calculate recurring dates
+    const now = new Date();
+    const todayInfo = `Today is ${now.toISOString().split("T")[0]} (${["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][now.getDay()]}). Current month has days 1-${new Date(now.getFullYear(), now.getMonth()+1, 0).getDate()}. When user says recurring expenses (every week, mỗi tuần, hàng tuần), calculate ALL dates for the current month and use add_multiple_expenses tool. Never ask for clarification on dates - calculate them yourself.`;
+    system = system ? system + "\n\n" + todayInfo : todayInfo;
 
     // First call — may use tools
     const response1 = await fetch('https://api.anthropic.com/v1/messages', {
@@ -113,6 +158,10 @@ export default async function handler(req, res) {
     if (toolUseBlock) {
       // Run the tool
       const toolResult = await runTool(toolUseBlock.name, toolUseBlock.input);
+      // For multiple expenses, attach records to result
+      if (toolUseBlock.name === "add_multiple_expenses" && toolResult.records) {
+        toolResult.allRecords = toolResult.records;
+      }
 
       // Second call — tell AI the result
       const messages2 = [
